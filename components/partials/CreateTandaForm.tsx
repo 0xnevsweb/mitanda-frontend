@@ -8,22 +8,22 @@ import {
 } from '@coinbase/onchainkit/transaction';
 import { useForm } from 'react-hook-form';
 import { useAccount } from 'wagmi';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, validate } from 'uuid';
 import TandaManagerABI from '@/config/abis/TandaManagerABI.json';
 import { TandaFormValues } from '@/types';
 import { Image, Info, X } from 'lucide-react';
 import { createTanda } from '@/utils/supabase/tandas';
 import { supabase } from '@/lib/supabase';
-import { useConversations } from '@/hooks/useConversations';
 import { GroupPermissionsOptions } from '@xmtp/browser-sdk';
 import toast from 'react-hot-toast';
 import { useTandas } from '@/contexts/TandaContext';
+import { useXMTP } from '@/contexts/XMTPContext';
 
 export default function CreateTandaForm({ setShowForm }: { setShowForm: Function }) {
   const { address } = useAccount();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { newGroup } = useConversations();
   const { getTandas } = useTandas();
+  const { client } = useXMTP();
 
   const {
     register,
@@ -154,18 +154,16 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
     setParticipantAddresses(participantAddresses.filter(addr => addr !== addressToRemove));
   };
 
-  const uploadLogo = async () => {
-    if (!logoFile) return '';
-
+  const uploadLogo = async (file: File) => {
     setIsUploading(true);
     try {
-      const fileExt = logoFile.name.split('.').pop();
+      const fileExt = file.name.split('.').pop();
       const fileName = `${uuidv4()}.${fileExt}`;
       const filePath = `tanda-logos/${fileName}`;
 
       const { data, error } = await supabase.storage
         .from('tanda-logos')
-        .upload(filePath, logoFile, {
+        .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
         });
@@ -178,7 +176,6 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
         .getPublicUrl(data.path);
 
       return publicUrl;
-
     } catch (error) {
       console.error('Error uploading logo:', error);
       return '';
@@ -258,20 +255,11 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
 
       let logo = '';
       if (logoFile) {
-        const promise = new Promise(async (resolve, reject) => {
-          try {
-            logo = await uploadLogo();
-            resolve(1);
-          } catch (error) {
-            reject(error);
-          }
-        });
-
-        toast.promise(promise, {
-          loading: 'Uploading logo...',
-          success: 'Logo is uploaded!',
-          error: 'Could not save',
-        })
+        try {
+          logo = await uploadLogo(logoFile);
+        } catch (error) {
+          console.log(error);
+        }
       }
 
       const addedMemberAddresses = participantAddresses.filter((member) =>
@@ -279,18 +267,25 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
       );
 
       if (addedMemberAddresses.length > 0) {
-        const conversation = await newGroup([], {
-          name: validatedValues?.title,
-          description: validatedValues?.description,
-          imageUrlSquare: logo,
-          permissions: GroupPermissionsOptions.Default,
-          customPermissionPolicySet: undefined,
-        });
-
+        let roomId = 'home';
+        if (client) {
+          try {
+            const conversation = await client.conversations.newGroup([], {
+              name: validatedValues?.title,
+              description: validatedValues?.description,
+              imageUrlSquare: logo,
+              permissions: GroupPermissionsOptions.Default,
+              customPermissionPolicySet: undefined,
+            });
+            roomId = conversation.id;
+          } catch (error) {
+            console.log(error);
+          }
+        }
 
         const promise = new Promise(async (resolve, reject) => {
           try {
-            await saveTandaToDB(contractAddress, conversation.id, logo);
+            await saveTandaToDB(contractAddress, roomId, logo);
             getTandas();
             resolve(1);
           } catch (error) {
@@ -655,7 +650,7 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
           {validatedValues ? (
             <Transaction
               calls={calls as any}
-              chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532}
+              chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 8453}
               className='w-full'
               onSuccess={handleOnSuccess}
             >

@@ -38,7 +38,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
     address: address as `0x${string}`,
     abi: TandaABI,
     functionName: 'getTandaSummary',
-    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532,
+    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 8453,
   });
 
   const tandaSummary: TandaSummary | undefined = tandaSummaryData ? {
@@ -54,7 +54,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
     address: address as `0x${string}`,
     abi: TandaABI,
     functionName: 'getAllParticipants',
-    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532
+    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 8453
   }) as { data: Participant[], isLoading: boolean };
 
   // Fetch current cycle info
@@ -62,7 +62,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
     address: address as `0x${string}`,
     abi: TandaABI,
     functionName: 'getCurrentPayoutRecipient',
-    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532
+    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 8453
   });
 
   // Fetch contribution amount (USDC has 6 decimals)
@@ -70,7 +70,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
     address: address as `0x${string}`,
     abi: TandaABI,
     functionName: 'contributionAmount',
-    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532
+    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 8453
   }) as { data: bigint };
 
   // Fetch payout interval
@@ -78,7 +78,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
     address: address as `0x${string}`,
     abi: TandaABI,
     functionName: 'payoutInterval',
-    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532
+    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 8453
   }) as { data: bigint };
 
   // Check if payout order is assigned
@@ -86,7 +86,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
     address: address as `0x${string}`,
     abi: TandaABI,
     functionName: 'payoutOrderAssigned',
-    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532
+    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 8453
   }) as { data: boolean };
 
   // Check if user is participant
@@ -95,7 +95,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
     abi: TandaABI,
     functionName: 'isParticipant',
     args: [userAddress],
-    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532
+    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 8453
   }) as { data: boolean };
 
   // Check if user is in good standing
@@ -104,7 +104,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
     abi: TandaABI,
     functionName: 'isParticipantInGoodStanding',
     args: [userAddress],
-    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532
+    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 8453
   }) as { data: boolean };
 
   // Check if user is the current payout recipient
@@ -329,7 +329,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
             <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
               <h3 className="text-sm font-medium text-blue-800 mb-2">Join this Tanda</h3>
               <p className="text-sm text-blue-700 mb-3">Contribute {formatUSDC(contributionAmount)} USDC to participate</p>
-              <Transaction calls={joinTandaCalls as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532}>
+              <Transaction calls={joinTandaCalls as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 8453}>
                 <TransactionButton text="Join Tanda" className='bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium' />
                 <TransactionStatus>
                   <TransactionStatusLabel />
@@ -347,7 +347,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
                 You need to pay for {cyclesToPayRemaining()} more cycle(s) to stay in good standing
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Transaction calls={() => makePaymentCalls(1) as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532}>
+                <Transaction calls={() => makePaymentCalls(1) as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 8453}>
                   <TransactionButton
                     text={`Pay 1 Cycle (${formatUSDC(contributionAmount)} USDC)`}
                     className='bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium w-full'
@@ -357,7 +357,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
                     <TransactionStatusAction />
                   </TransactionStatus>
                 </Transaction>
-                <Transaction calls={() => makePaymentCalls(Number(cyclesToPayRemaining())) as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532}>
+                <Transaction calls={() => makePaymentCalls(Number(cyclesToPayRemaining())) as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 8453}>
                   <TransactionButton
                     text={`Pay All (${formatUSDC(contributionAmount * BigInt(cyclesToPayRemaining()))} USDC)`}
                     className='bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium w-full'
@@ -382,7 +382,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
                   ? `You can claim your payout of ${formatUSDC(contributionAmount * BigInt(participants.length))} USDC starting ${formatDate(tandaSummary.nextPayoutTimestamp)}.`
                   : `You can trigger the payout for ${currentCycleWinner ? `${currentCycleWinner?.toString().slice(0, 6)}...${currentCycleWinner?.toString().slice(-4)}` : '...'} starting ${formatDate(tandaSummary.nextPayoutTimestamp)}.`}
               </p>
-              <Transaction calls={triggerPayoutCalls as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532}>
+              <Transaction calls={triggerPayoutCalls as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 8453}>
                 <TransactionButton
                   text={isCurrentRecipient ? 'Claim Payout' : 'Trigger Payout'}
                   className={`${isCurrentRecipient ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-orange-600 hover:bg-orange-700'} text-white px-4 py-2 rounded-md text-sm font-medium`}

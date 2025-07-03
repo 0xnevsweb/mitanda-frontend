@@ -30,7 +30,7 @@ export default function TandaCard(
     address: tandaAddress as `0x${string}`,
     abi: TandaABI,
     functionName: 'getTandaSummary',
-    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532
+    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 8453
   });
 
   const [
