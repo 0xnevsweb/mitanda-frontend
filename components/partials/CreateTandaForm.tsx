@@ -235,7 +235,6 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
 
   const calls = useCallback(() => {
     if (!validatedValues) return [];
-    //           BigInt((validatedValues.payoutInterval * 86400).toFixed(0)), // Convert days to seconds
 
     return [
       {
@@ -244,7 +243,7 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
         functionName: 'createTanda',
         args: [
           BigInt((validatedValues.contributionAmount * 1e6).toFixed(0)), // Convert to USDC wei
-          BigInt((60).toFixed(0)), // Convert days to seconds
+          BigInt((validatedValues.payoutInterval * 86400).toFixed(0)), // Convert days to seconds
           validatedValues.participantCount,
           participantAddresses, // Whitelist array
         ],

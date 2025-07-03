@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { useAccount, useContractRead } from 'wagmi';
 import { useCallback, useMemo, useEffect, useState } from 'react';
-import { FaDiscord, FaTelegram, FaTwitter, FaWhatsapp, FaWhatsappSquare } from 'react-icons/fa';
-import { bigIntToNumber, bigIntToString, formatDate, formatUSDC, secondsToDays } from '@/utils';
+import { FaDiscord, FaTelegram, FaTwitter, FaWhatsapp } from 'react-icons/fa';
+import { bigIntToString, formatDate, formatUSDC, secondsToDays } from '@/utils';
 import { Participant, TandaSummary } from '@/types';
 import { Transaction, TransactionButton, TransactionStatus, TransactionStatusLabel, TransactionStatusAction } from '@coinbase/onchainkit/transaction';
 import CountdownTimer from '@/components/ui/CountDownTimer';
@@ -17,7 +17,6 @@ export default function TandaDetail({ params }: { params: { address: string } })
   const { address } = params;
   const { address: userAddress } = useAccount();
   const [tandaMetadata, setTandaMetadata] = useState<TandaData | null>(null);
-  const [loadingMetadata, setLoadingMetadata] = useState(true);
 
   // Fetch Tanda metadata from DB
   useEffect(() => {
@@ -28,7 +27,6 @@ export default function TandaDetail({ params }: { params: { address: string } })
       } catch (error) {
         console.error('Failed to fetch tanda metadata:', error);
       } finally {
-        setLoadingMetadata(false);
       }
     };
 
