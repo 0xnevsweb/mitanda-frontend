@@ -8,7 +8,7 @@ import {
 } from '@coinbase/onchainkit/transaction';
 import { useForm } from 'react-hook-form';
 import { useAccount } from 'wagmi';
-import { v4 as uuidv4, validate } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import TandaManagerABI from '@/config/abis/TandaManagerABI.json';
 import { TandaFormValues } from '@/types';
 import { Image, Info, X } from 'lucide-react';
@@ -19,7 +19,7 @@ import toast from 'react-hot-toast';
 import { useTandas } from '@/contexts/TandaContext';
 import { useXMTP } from '@/contexts/XMTPContext';
 
-export default function CreateTandaForm({ setShowForm }: { setShowForm: Function }) {
+export default function CreateTandaForm({ setShowForm }: { setShowForm: (flag: boolean) => void }) {
   const { address } = useAccount();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { getTandas } = useTandas();
@@ -308,7 +308,7 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
     } catch (error) {
       console.error('Error handling transaction success:', error);
     } finally {
-      setShowForm();
+      setShowForm(false);
     }
   }, [validatedValues, participantAddresses, address]);
 

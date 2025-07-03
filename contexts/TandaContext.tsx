@@ -5,7 +5,7 @@ import { getAllActiveTandas, getTandasByCreator, getTandasByParticipant } from '
 import { TandaData } from '@/types';
 import { useAccount } from 'wagmi';
 
-type TabType = 'all' | 'joined' | 'created';
+export type TabType = 'all' | 'joined' | 'created';
 
 interface TandasContextType {
     activeTab: TabType;

@@ -9,9 +9,9 @@ import { ChevronDown, ChevronUp, Search } from 'lucide-react';
 import Loader from '../ui/Loader';
 import IsError from '../ui/IsError';
 import NoTandas from '../ui/NoTandas';
-import { useTandas } from '@/contexts/TandaContext';
+import { TabType, useTandas } from '@/contexts/TandaContext';
 
-const TabsAndSearch = ({ tandas, setFilteredTandas, filterTandasByTab }: { tandas: TandaData[], setFilteredTandas: Function, filterTandasByTab: Function }) => {
+const TabsAndSearch = ({ tandas, setFilteredTandas, filterTandasByTab }: { tandas: TandaData[], setFilteredTandas: (tas: TandaData[]) => void, filterTandasByTab: (tas: TabType) => void }) => {
   const { isConnected } = useAccount();
   const [searchQuery, setSearchQuery] = useState('');
   const { activeTab, setActiveTab } = useTandas();
