@@ -93,15 +93,3 @@ export async function searchTandas(query: string) {
         orderBy: { createdAt: 'desc' }
     }) as TandaData[];
 }
-
-// Delete tanda
-export async function deleteTanda(id: string) {
-    return await prisma.$transaction([
-        prisma.tandaParticipant.deleteMany({
-            where: { tandaId: id }
-        }),
-        prisma.tanda.delete({
-            where: { id }
-        })
-    ]);
-}

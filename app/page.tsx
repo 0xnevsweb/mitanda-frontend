@@ -33,7 +33,7 @@ export default function Home() {
                   Close
                 </button>
               </div>
-              <CreateTandaForm />
+                <CreateTandaForm setShowForm={setShowForm} />
             </div>
           )}
         </div>

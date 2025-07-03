@@ -12,7 +12,8 @@ export default function TandaCard(
     tandaAddress,
     contributionAmount,
     payoutInterval,
-    chatRoomId
+    chatRoomId,
+    members
   }:
     {
       title: string,
@@ -20,7 +21,8 @@ export default function TandaCard(
       tandaAddress: string,
       contributionAmount: number,
       payoutInterval: number,
-      chatRoomId: string | null
+      chatRoomId: string | null,
+      members: number
     }
 ) {
   // Then get the summary from the specific Tanda contract
@@ -169,11 +171,11 @@ export default function TandaCard(
           <div className="w-12 bg-gray-200 rounded-full h-2">
             <div
               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${Math.min((Number(currentCycle) / Number(participantsCount)) * 100, 100)}%` }}
+              style={{ width: `${Math.min((Number(currentCycle) / Number(members)) * 100, 100)}%` }}
             ></div>
           </div>
           <span className="text-sm font-medium text-gray-700">
-            {currentCycle.toString()}/{Number(participantsCount)}
+            {currentCycle.toString()}/{Number(members)}
           </span>
         </div>
       </td>
@@ -184,11 +186,11 @@ export default function TandaCard(
           <div className="w-12 bg-gray-200 rounded-full h-2">
             <div
               className="bg-green-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(Number(participantsCount) / Number(participantsCount)) * 100}%` }}
+              style={{ width: `${(Number(participantsCount) / Number(members)) * 100}%` }}
             ></div>
           </div>
           <span className="text-sm font-medium text-gray-700">
-            {participantsCount.toString()}/{Number(participantsCount)}
+            {participantsCount.toString()}/{Number(members)}
           </span>
         </div>
       </td>

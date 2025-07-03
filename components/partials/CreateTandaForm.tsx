@@ -17,7 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { useConversations } from '@/hooks/useConversations';
 import { GroupPermissionsOptions } from '@xmtp/browser-sdk';
 
-export default function CreateTandaForm() {
+export default function CreateTandaForm({ setShowForm }: { setShowForm: Function }) {
   const { address } = useAccount();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { newGroup } = useConversations();
@@ -259,6 +259,8 @@ export default function CreateTandaForm() {
 
     } catch (error) {
       console.error('Error handling transaction success:', error);
+    } finally {
+      setShowForm();
     }
   }, [validatedValues, participantAddresses, address]);
 
