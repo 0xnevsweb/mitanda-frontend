@@ -93,9 +93,6 @@ export default function TandaCard(
       <td className="px-4 py-3 whitespace-nowrap">
         <div className="h-3 bg-gray-200 rounded w-12 animate-pulse"></div>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap">
-        <div className="h-8 bg-gray-200 rounded w-20 animate-pulse"></div>
-      </td>
     </>
   );
 
