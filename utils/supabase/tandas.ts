@@ -34,13 +34,17 @@ export async function getTandaById(id: string) {
 
 export async function getTandaByAddress(address: string) {
     const tanda = await prisma.tanda.findUnique({
-        where: { contractAddress: address }
+        where: { contractAddress: address },
+        include: {
+            participants: true
+        }
     })
 
     if (!tanda) return null
 
     return {
-        ...tanda
+        ...tanda,
+        participants: tanda.participants.map(p => p.address)
     } as TandaData
 }
 

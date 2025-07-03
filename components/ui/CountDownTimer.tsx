@@ -16,7 +16,7 @@ export default function CountdownTimer({ timestamp }: { timestamp: bigint }) {
 
   return (
     <span className={countdown.status === 'due' ? 'text-yellow-600' :
-      countdown.status === 'past-due' ? 'text-red-600' : ''}>
+      countdown.status === 'past-due' ? 'text-red-600' : 'text-gray-600'}>
       {countdown.timeString}
     </span>
   );

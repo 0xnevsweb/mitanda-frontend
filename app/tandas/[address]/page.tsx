@@ -35,7 +35,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
   }, [address]);
 
   // Fetch Tanda summary
-  const { data: tandaSummaryData, isLoading: loadingSummary }: any = useContractRead({
+  const { data: tandaSummaryData }: any = useContractRead({
     address: address as `0x${string}`,
     abi: TandaABI,
     functionName: 'getTandaSummary',
@@ -51,7 +51,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
   } : undefined;
 
   // Fetch participants
-  const { data: participants, isLoading: loadingParticipants } = useContractRead({
+  const { data: participants } = useContractRead({
     address: address as `0x${string}`,
     abi: TandaABI,
     functionName: 'getAllParticipants',
@@ -59,18 +59,12 @@ export default function TandaDetail({ params }: { params: { address: string } })
   }) as { data: Participant[], isLoading: boolean };
 
   // Fetch current cycle info
-  const { data: cycleInfoData, isLoading: loadingCycleInfo }: any = useContractRead({
+  const { data: currentCycleWinner }: any = useContractRead({
     address: address as `0x${string}`,
     abi: TandaABI,
-    functionName: 'getCurrentCycleInfo',
+    functionName: 'getCurrentPayoutRecipient',
     chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532
   });
-
-  const cycleInfo: CycleInfo | undefined = cycleInfoData ? {
-    cycleNumber: cycleInfoData[0],
-    payoutAddress: cycleInfoData[1],
-    payoutAmount: cycleInfoData[2],
-  } : undefined;
 
   // Fetch contribution amount (USDC has 6 decimals)
   const { data: contributionAmount } = useContractRead({
@@ -122,14 +116,25 @@ export default function TandaDetail({ params }: { params: { address: string } })
     chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532
   }) as { data: boolean };
 
+  console.log(currentCycleWinner);
+
   // Check if user is the current payout recipient
-  const isCurrentRecipient = cycleInfo?.payoutAddress?.toLowerCase() === userAddress?.toLowerCase();
+  const isCurrentRecipient = useMemo(() => {
+    if (!currentCycleWinner || !userAddress) return false;
+    return currentCycleWinner?.toLowerCase() === userAddress?.toLowerCase()
+  }, [userAddress, currentCycleWinner]);
 
   // Check if payout can be triggered
   const canTriggerPayout = tandaSummary?.state === 1;
 
   // Loading state
-  const isLoading = loadingMetadata || loadingSummary || loadingParticipants || loadingCycleInfo;
+  const isUserWhiteListed = useMemo(() => {
+    if (address && tandaMetadata) {
+      const find = tandaMetadata.participants.find((p) => p === userAddress);
+      return find ? true : false;
+    }
+    return false;
+  }, [userAddress, tandaMetadata])
 
   // Get Tanda state as string
   const getStateString = (state?: number) => {
@@ -215,7 +220,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
   }
 
   return (
-    <div className="max-w-screen-2xl mx-auto px-4 py-8">
+    <div className="max-w-screen-2xl mx-auto px-4 py-8 text-gray-600">
       <Link href="/" className='inline-flex items-center gap-1 text-gray-600 hover:text-gray-900 duration-150'>
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
@@ -286,7 +291,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
         {/* Action Buttons Section */}
         <div className="mt-6">
           {/* Join Button */}
-          {tandaSummary.state === 0 && !isParticipant && userAddress && (
+          {tandaSummary.state === 0 && !isParticipant && userAddress && isUserWhiteListed && (
             <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
               <h3 className="text-sm font-medium text-blue-800 mb-2">Join this Tanda</h3>
               <p className="text-sm text-blue-700 mb-3">Contribute {formatUSDC(contributionAmount)} USDC to participate</p>
@@ -301,7 +306,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
           )}
 
           {/* Make Payment Button */}
-          {tandaSummary.state === 1 && isParticipant && userAddress && Number(cyclesToPayRemaining()) > 0 && (
+          {tandaSummary.state === 1 && isParticipant && userAddress && isUserWhiteListed && Number(cyclesToPayRemaining()) > 0 && (
             <div className="bg-yellow-50 border border-yellow-100 rounded-lg p-4">
               <h3 className="text-sm font-medium text-yellow-800 mb-2">Payment Required</h3>
               <p className="text-sm text-yellow-700 mb-3">
@@ -334,14 +339,14 @@ export default function TandaDetail({ params }: { params: { address: string } })
 
           {/* Trigger Payout Button */}
           {tandaSummary.state === 1 && canTriggerPayout && isParticipant && userAddress && (
-            <div className={`${isCurrentRecipient ? 'bg-yellow-50 border-yellow-100' : 'bg-orange-50 border-orange-100'} border rounded-lg p-4`}>
+            <div className={`${isCurrentRecipient ? 'bg-yellow-50 border-yellow-100' : 'bg-orange-50 border-orange-100'} border rounded-lg p-4 mt-2`}>
               <h3 className="text-sm font-medium mb-2">
                 {isCurrentRecipient ? 'Claim Your Payout' : 'Trigger Payout'}
               </h3>
               <p className="text-sm mb-3">
                 {isCurrentRecipient
                   ? `You can claim your payout of ${formatUSDC(contributionAmount * BigInt(participants.length))} USDC starting ${formatDate(tandaSummary.nextPayoutTimestamp)}.`
-                  : `You can trigger the payout for ${cycleInfo?.payoutAddress.slice(0, 6)}...${cycleInfo?.payoutAddress.slice(-4)} starting ${formatDate(tandaSummary.nextPayoutTimestamp)}.`}
+                  : `You can trigger the payout for ${currentCycleWinner ? `${currentCycleWinner?.toString().slice(0, 6)}...${currentCycleWinner?.toString().slice(-4)}` : '...'} starting ${formatDate(tandaSummary.nextPayoutTimestamp)}.`}
               </p>
               <Transaction calls={triggerPayoutCalls as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532}>
                 <TransactionButton
@@ -407,13 +412,13 @@ export default function TandaDetail({ params }: { params: { address: string } })
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
             <h3 className="text-sm font-medium text-gray-500">Current Recipient</h3>
             <p className="text-lg font-medium text-gray-800">
-              {cycleInfo?.payoutAddress ?
+              {currentCycleWinner ?
                 <Link
-                  href={`${process.env.NEXT_PUBLIC_EXPLORER}/address/${cycleInfo.payoutAddress}`}
+                  href={`${process.env.NEXT_PUBLIC_EXPLORER}/address/${currentCycleWinner?.payoutAddress}`}
                   target='_blank'
                   className="hover:underline hover:text-blue-600"
                 >
-                  {cycleInfo.payoutAddress.slice(0, 6)}...{cycleInfo.payoutAddress.slice(-4)}
+                  {currentCycleWinner?.toString().slice(0, 6)}...{currentCycleWinner?.toString().slice(-4)}
                 </Link> :
                 'Not assigned yet'}
             </p>
@@ -466,7 +471,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {participants.map((participant, index) => (
+              {participants?.map((participant, index) => (
                 <tr key={index} className={participant.addr === userAddress ? 'bg-blue-50' : ''}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -512,7 +517,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
       </div>
 
       {/* Payout Schedule */}
-      {payoutOrderAssigned && tandaSummary.state === 1 && (
+      {payoutOrderAssigned && tandaSummary.state === 1 && payoutOrder && (
         <div className="border border-gray-200 rounded-lg p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Payout Schedule</h2>
           <div className="space-y-3">
