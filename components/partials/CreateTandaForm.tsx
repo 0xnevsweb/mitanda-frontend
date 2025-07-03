@@ -39,6 +39,10 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
       contributionAmount: 10,
       payoutInterval: 7,
       participantCount: 4,
+      twitter: '',
+      telegram: '',
+      whatsapp: '',
+      discord: '',
     },
   });
 
@@ -183,6 +187,16 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
     }
   };
 
+  const isValidUrl = (url: string | undefined) => {
+    if (!url) return true;
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const onValid = async (data: TandaFormValues) => {
     // Check if we have enough participants
     if (participantAddresses.length !== Number(data.participantCount)) {
@@ -207,6 +221,10 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
         participantCount: Number(validatedValues.participantCount),
         participants: participantAddresses,
         chatRoomId: chatRoomId,
+        twitter: validatedValues?.twitter,
+        discord: validatedValues?.discord,
+        telegram: validatedValues?.telegram,
+        whatsapp: validatedValues?.whatsapp
       });
       return tanda;
     } catch (error) {
@@ -217,6 +235,7 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
 
   const calls = useCallback(() => {
     if (!validatedValues) return [];
+    //           BigInt((validatedValues.payoutInterval * 86400).toFixed(0)), // Convert days to seconds
 
     return [
       {
@@ -225,7 +244,7 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
         functionName: 'createTanda',
         args: [
           BigInt((validatedValues.contributionAmount * 1e6).toFixed(0)), // Convert to USDC wei
-          BigInt((validatedValues.payoutInterval * 86400).toFixed(0)), // Convert days to seconds
+          BigInt((60).toFixed(0)), // Convert days to seconds
           validatedValues.participantCount,
           participantAddresses, // Whitelist array
         ],
@@ -362,8 +381,7 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
               </label>
 
               <div
-                className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md ${isDragging ? 'border-blue-500 bg-blue-50' : errors.logo ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-md ${isDragging && 'border-blue-500 bg-blue-50border-gray-300'}`}
                 onDragEnter={handleDragEnter}
                 onDragLeave={handleDragLeave}
                 onDragOver={handleDragOver}
@@ -413,6 +431,75 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Social Links Section */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-gray-700">Social Links (Optional)</h3>
+
+              {/* Twitter */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  {...register('twitter', {
+                    validate: (value) => isValidUrl(value) || 'Please enter a valid URL'
+                  })}
+                  placeholder="https://twitter.com/yourgroup"
+                  className={`flex-1 rounded-md p-2 border ${errors.twitter ? 'border-red-300' : 'border-gray-200'
+                    } text-gray-800 focus-visible:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                />
+              </div>
+              {errors.twitter && (
+                <p className="text-red-500 text-sm -mt-2">{errors.twitter.message}</p>
+              )}
+
+              {/* Telegram */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  {...register('telegram', {
+                    validate: (value) => isValidUrl(value) || 'Please enter a valid URL'
+                  })}
+                  placeholder="https://t.me/yourgroup"
+                  className={`flex-1 rounded-md p-2 border ${errors.telegram ? 'border-red-300' : 'border-gray-200'
+                    } text-gray-800 focus-visible:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                />
+              </div>
+              {errors.telegram && (
+                <p className="text-red-500 text-sm -mt-2">{errors.telegram.message}</p>
+              )}
+
+              {/* WhatsApp */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  {...register('whatsapp', {
+                    validate: (value) => isValidUrl(value) || 'Please enter a valid URL'
+                  })}
+                  placeholder="https://chat.whatsapp.com/yourgroup"
+                  className={`flex-1 rounded-md p-2 border ${errors.whatsapp ? 'border-red-300' : 'border-gray-200'
+                    } text-gray-800 focus-visible:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                />
+              </div>
+              {errors.whatsapp && (
+                <p className="text-red-500 text-sm -mt-2">{errors.whatsapp.message}</p>
+              )}
+
+              {/* Discord */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  {...register('discord', {
+                    validate: (value) => isValidUrl(value) || 'Please enter a valid URL'
+                  })}
+                  placeholder="https://discord.gg/yourgroup"
+                  className={`flex-1 rounded-md p-2 border ${errors.discord ? 'border-red-300' : 'border-gray-200'
+                    } text-gray-800 focus-visible:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                />
+              </div>
+              {errors.discord && (
+                <p className="text-red-500 text-sm -mt-2">{errors.discord.message}</p>
+              )}
             </div>
           </div>
           <div className='space-y-2'>

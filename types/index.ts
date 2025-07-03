@@ -63,7 +63,10 @@ export type TandaFormValues = {
   contributionAmount: number;
   payoutInterval: number;
   participantCount: number;
-  logo?: string;
+  twitter?: string;
+  telegram?: string;
+  whatsapp?: string;
+  discord?: string;
 };
 
 export type TandaData = {
@@ -78,6 +81,10 @@ export type TandaData = {
   participantCount: number;
   chatRoomId: string | null;
   participants: string[];
+  twitter?: string;
+  telegram?: string;
+  whatsapp?: string;
+  discord?: string;
   createdAt: Date;
   updatedAt: Date;
 };
