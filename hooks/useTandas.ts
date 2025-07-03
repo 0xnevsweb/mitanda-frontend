@@ -39,7 +39,7 @@ export default function useTandas() {
     try {
       let filtered: TandaData[] = [];
       if (tab === 'all') {
-        filtered = tandas;
+        filtered = await getAllActiveTandas();
       } else if (tab === 'created') {
         const createdTandas = await getTandasByCreator(address);
         filtered = createdTandas;
@@ -69,6 +69,7 @@ export default function useTandas() {
     isError,
     filterTandasByTab,
     setFilteredTandas,
+    getTandas,
     lastUpdateDate
   }
 
