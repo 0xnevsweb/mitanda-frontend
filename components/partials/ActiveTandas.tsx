@@ -52,7 +52,10 @@ const TabsAndSearch = ({ tandas, setFilteredTandas, filterTandasByTab }: { tanda
   return <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
     <div className="flex space-x-2 overflow-x-auto pb-2 md:pb-0">
       <button
-        onClick={() => { setActiveTab('all'), filterTandasByTab('all') }}
+        onClick={() => {
+          setActiveTab('all');
+          filterTandasByTab('all');
+        }}
         className={`px-4 py-2 rounded-md text-sm font-medium ${activeTab === 'all' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'}`}
       >
         All Tandas
@@ -60,13 +63,19 @@ const TabsAndSearch = ({ tandas, setFilteredTandas, filterTandasByTab }: { tanda
       {isConnected && (
         <>
           <button
-            onClick={() => { setActiveTab('joined'), filterTandasByTab('joined') }}
+            onClick={() => {
+              setActiveTab('joined');
+              filterTandasByTab('joined');
+            }}
             className={`px-4 py-2 rounded-md text-sm font-medium ${activeTab === 'joined' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'}`}
           >
             Joined Tandas
           </button>
           <button
-            onClick={() => { setActiveTab('created'), filterTandasByTab('created') }}
+            onClick={() => {
+              setActiveTab('created');
+              filterTandasByTab('created');
+            }}
             className={`px-4 py-2 rounded-md text-sm font-medium ${activeTab === 'created' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'}`}
           >
             Created Tandas
