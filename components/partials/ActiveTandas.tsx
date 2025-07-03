@@ -6,17 +6,15 @@ import { TandaData } from '@/types';
 import { useAccount } from 'wagmi';
 import { debounce } from 'lodash';
 import { ChevronDown, ChevronUp, Search } from 'lucide-react';
-import useTandas from '@/hooks/useTandas';
 import Loader from '../ui/Loader';
 import IsError from '../ui/IsError';
 import NoTandas from '../ui/NoTandas';
-
-type TabType = 'all' | 'joined' | 'created';
+import { useTandas } from '@/contexts/TandaContext';
 
 const TabsAndSearch = ({ tandas, setFilteredTandas, filterTandasByTab }: { tandas: TandaData[], setFilteredTandas: Function, filterTandasByTab: Function }) => {
-  const { isConnected, address } = useAccount();
+  const { isConnected } = useAccount();
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<TabType>('all');
+  const { activeTab, setActiveTab } = useTandas();
 
   // Debounced search
   const debouncedSearch = useMemo(
@@ -44,12 +42,6 @@ const TabsAndSearch = ({ tandas, setFilteredTandas, filterTandasByTab }: { tanda
     debouncedSearch(query);
   };
 
-  // Handle tab change
-  useEffect(() => {
-    if (activeTab !== 'all' && !address) return;
-    filterTandasByTab(activeTab);
-  }, [activeTab, address]);
-
   // Cleanup debounce
   useEffect(() => {
     return () => {
@@ -60,7 +52,7 @@ const TabsAndSearch = ({ tandas, setFilteredTandas, filterTandasByTab }: { tanda
   return <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
     <div className="flex space-x-2 overflow-x-auto pb-2 md:pb-0">
       <button
-        onClick={() => setActiveTab('all')}
+        onClick={() => { setActiveTab('all'), filterTandasByTab('all') }}
         className={`px-4 py-2 rounded-md text-sm font-medium ${activeTab === 'all' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'}`}
       >
         All Tandas
@@ -68,13 +60,13 @@ const TabsAndSearch = ({ tandas, setFilteredTandas, filterTandasByTab }: { tanda
       {isConnected && (
         <>
           <button
-            onClick={() => setActiveTab('joined')}
+            onClick={() => { setActiveTab('joined'), filterTandasByTab('joined') }}
             className={`px-4 py-2 rounded-md text-sm font-medium ${activeTab === 'joined' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'}`}
           >
             Joined Tandas
           </button>
           <button
-            onClick={() => setActiveTab('created')}
+            onClick={() => { setActiveTab('created'), filterTandasByTab('created') }}
             className={`px-4 py-2 rounded-md text-sm font-medium ${activeTab === 'created' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'}`}
           >
             Created Tandas

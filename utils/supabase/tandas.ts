@@ -32,6 +32,18 @@ export async function getTandaById(id: string) {
     } as TandaData
 }
 
+export async function getTandaByAddress(address: string) {
+    const tanda = await prisma.tanda.findUnique({
+        where: { contractAddress: address }
+    })
+
+    if (!tanda) return null
+
+    return {
+        ...tanda
+    } as TandaData
+}
+
 export async function getTandasByCreator(creatorAddress: string) {
     const tandas = await prisma.tanda.findMany({
         where: { creatorAddress },

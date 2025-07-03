@@ -17,11 +17,13 @@ import { supabase } from '@/lib/supabase';
 import { useConversations } from '@/hooks/useConversations';
 import { GroupPermissionsOptions } from '@xmtp/browser-sdk';
 import toast from 'react-hot-toast';
+import { useTandas } from '@/contexts/TandaContext';
 
 export default function CreateTandaForm({ setShowForm }: { setShowForm: Function }) {
   const { address } = useAccount();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { newGroup } = useConversations();
+  const { getTandas } = useTandas();
 
   const {
     register,
@@ -271,6 +273,7 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
         const promise = new Promise(async (resolve, reject) => {
           try {
             await saveTandaToDB(contractAddress, conversation.id, logo);
+            getTandas();
             resolve(1);
           } catch (error) {
             reject(error);

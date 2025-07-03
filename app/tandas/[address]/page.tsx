@@ -2,20 +2,40 @@
 
 import Link from 'next/link';
 import { useAccount, useContractRead } from 'wagmi';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useEffect, useState } from 'react';
 import { bigIntToNumber, bigIntToString, formatDate, formatUSDC, secondsToDays } from '@/utils';
 import { CycleInfo, Participant, TandaSummary } from '@/types';
 import { Transaction, TransactionButton, TransactionStatus, TransactionStatusLabel, TransactionStatusAction } from '@coinbase/onchainkit/transaction';
 import CountdownTimer from '@/components/ui/CountDownTimer';
 import TandaABI from '@/config/abis/TandaABI.json';
 import ERC20ABI from '@/config/abis/Erc20ABI.json';
+import { TandaData } from '@/types';
+import { getTandaByAddress } from '@/utils/supabase/tandas';
 
 export default function TandaDetail({ params }: { params: { address: string } }) {
   const { address } = params;
   const { address: userAddress } = useAccount();
+  const [tandaMetadata, setTandaMetadata] = useState<TandaData | null>(null);
+  const [loadingMetadata, setLoadingMetadata] = useState(true);
+
+  // Fetch Tanda metadata from DB
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const data = await getTandaByAddress(address);
+        setTandaMetadata(data);
+      } catch (error) {
+        console.error('Failed to fetch tanda metadata:', error);
+      } finally {
+        setLoadingMetadata(false);
+      }
+    };
+
+    fetchMetadata();
+  }, [address]);
 
   // Fetch Tanda summary
-  const { data: tandaSummaryData }: any = useContractRead({
+  const { data: tandaSummaryData, isLoading: loadingSummary }: any = useContractRead({
     address: address as `0x${string}`,
     abi: TandaABI,
     functionName: 'getTandaSummary',
@@ -31,15 +51,15 @@ export default function TandaDetail({ params }: { params: { address: string } })
   } : undefined;
 
   // Fetch participants
-  const { data: participants } = useContractRead({
+  const { data: participants, isLoading: loadingParticipants } = useContractRead({
     address: address as `0x${string}`,
     abi: TandaABI,
     functionName: 'getAllParticipants',
     chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532
-  }) as { data: Participant[] };
+  }) as { data: Participant[], isLoading: boolean };
 
   // Fetch current cycle info
-  const { data: cycleInfoData }: any = useContractRead({
+  const { data: cycleInfoData, isLoading: loadingCycleInfo }: any = useContractRead({
     address: address as `0x${string}`,
     abi: TandaABI,
     functionName: 'getCurrentCycleInfo',
@@ -68,20 +88,20 @@ export default function TandaDetail({ params }: { params: { address: string } })
     chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532
   }) as { data: bigint };
 
-  // Fetch grace period
-  const { data: gracePeriod } = useContractRead({
+  // Check if payout order is assigned
+  const { data: payoutOrderAssigned } = useContractRead({
     address: address as `0x${string}`,
     abi: TandaABI,
-    functionName: 'gracePeriod',
+    functionName: 'payoutOrderAssigned',
     chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532
-  }) as { data: bigint };
+  }) as { data: boolean };
 
   // Fetch payout order if assigned
   const { data: payoutOrder } = useContractRead({
     address: address as `0x${string}`,
     abi: TandaABI,
     functionName: 'getPayoutOrder',
-    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532
+    chainId: Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532,
   }) as { data: bigint[] };
 
   // Check if user is participant
@@ -107,6 +127,9 @@ export default function TandaDetail({ params }: { params: { address: string } })
 
   // Check if payout can be triggered
   const canTriggerPayout = tandaSummary?.state === 1;
+
+  // Loading state
+  const isLoading = loadingMetadata || loadingSummary || loadingParticipants || loadingCycleInfo;
 
   // Get Tanda state as string
   const getStateString = (state?: number) => {
@@ -152,7 +175,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
         abi: ERC20ABI,
         address: process.env.NEXT_PUBLIC_USDC_ADDRESS,
         functionName: 'approve',
-        args: [address, contributionAmount],
+        args: [address, contributionAmount * BigInt(cyclesToPay)],
       },
       {
         abi: TandaABI,
@@ -164,29 +187,11 @@ export default function TandaDetail({ params }: { params: { address: string } })
 
   const myCurrentStatus = useMemo(() => {
     return participants ? participants.find(p => p.addr === userAddress) : {} as Participant;
-  }, [participants]);
+  }, [participants, userAddress]);
 
   const cyclesToPayRemaining = useCallback(() => {
     return tandaSummary && myCurrentStatus ? tandaSummary?.participantsCount - myCurrentStatus?.paidUntilCycle : 1;
   }, [myCurrentStatus, tandaSummary]);
-
-  // Make payment transaction
-  const makePaymentCallsAllRemaining = useCallback(() => {
-    const cyclesToPayRemaining = tandaSummary && myCurrentStatus ? tandaSummary?.participantsCount - myCurrentStatus?.paidUntilCycle : 1
-    return [
-      {
-        abi: ERC20ABI,
-        address: process.env.NEXT_PUBLIC_USDC_ADDRESS,
-        functionName: 'approve',
-        args: [address, contributionAmount * BigInt(cyclesToPayRemaining)],
-      },
-      {
-        abi: TandaABI,
-        address: address,
-        functionName: 'makePayment',
-        args: [BigInt(cyclesToPayRemaining)],
-      }];
-  }, [address, contributionAmount, tandaSummary, myCurrentStatus]);
 
   // Trigger payout transaction
   const triggerPayoutCalls = useCallback(() => {
@@ -203,7 +208,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
       <div className="max-w-screen-2xl mx-auto px-4 py-8">
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-lg">Loading Tanda details...</p>
+          <p className="mt-4 text-lg text-gray-600">Loading Tanda details...</p>
         </div>
       </div>
     );
@@ -211,73 +216,82 @@ export default function TandaDetail({ params }: { params: { address: string } })
 
   return (
     <div className="max-w-screen-2xl mx-auto px-4 py-8">
-      <Link href="/" className='p-2 px-3 text-gray-600 hover:bg-gray-200 duration-150' >{`< Back`}</Link>
+      <Link href="/" className='inline-flex items-center gap-1 text-gray-600 hover:text-gray-900 duration-150'>
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+        </svg>
+        Back to Tandas
+      </Link>
 
       {/* Header Section */}
-      <div className="border border-gray-200 p-6 mb-6 mt-3">
-        <div className='flex justify-between'>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            Tanda
-            <Link
-              href={`${process.env.NEXT_PUBLIC_Explorer}/address/${address}`}
-              target='_blank'
-              className='bg-gray-100 px-2 ml-1 text-sm rounded-full font-normal hover:underline hover:text-blue-700 cursor-pointer text-gray-500'
-            >
-              {address.slice(0, 4)}...{address.slice(-4)}
-            </Link>
-          </h1>
+      <div className="border border-gray-200 rounded-lg p-6 mb-6 mt-4">
+        <div className='flex flex-col md:flex-row justify-between gap-4'>
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              {tandaMetadata?.logoUrl && (
+                <img src={tandaMetadata.logoUrl} alt="Tanda logo" className="w-10 h-10 rounded-full object-cover" />
+              )}
+              <h1 className="text-2xl font-bold text-gray-800">
+                {tandaMetadata?.title || 'Tanda'}
+                <Link
+                  href={`${process.env.NEXT_PUBLIC_EXPLORER}/address/${address}`}
+                  target='_blank'
+                  className='ml-2 text-sm font-normal text-gray-500 hover:text-blue-600 hover:underline'
+                >
+                  {address.slice(0, 6)}...{address.slice(-4)}
+                </Link>
+              </h1>
+            </div>
 
-          <p className="text-sm bg-gray-100 h-fit px-3 py-0.5 font-medium text-gray-800">
-            {
-              tandaSummary.nextPayoutTimestamp && <><CountdownTimer timestamp={tandaSummary.nextPayoutTimestamp} />
-                <span className="text-sm text-gray-500 ml-2">
-                  ({formatDate(tandaSummary.nextPayoutTimestamp)})
-                </span></>
-            }
+            {tandaMetadata?.description && (
+              <p className="text-gray-600 mb-4">{tandaMetadata.description}</p>
+            )}
 
-          </p>
-        </div>
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${tandaSummary.state === 0 ? 'bg-blue-100 text-blue-800' :
+                tandaSummary.state === 1 ? 'bg-green-100 text-green-800' :
+                  'bg-purple-100 text-purple-800'
+                }`}>
+                {getStateString(tandaSummary.state)}
+              </span>
+              {tandaSummary.state === 1 && isParticipant && (
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${isInGoodStanding ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                  {isInGoodStanding ? 'In Good Standing' : Number(cyclesToPayRemaining()) > 0 ? 'Payment Needed' : 'Fully Paid'}
+                </span>
+              )}
+            </div>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-4 mb-4">
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${tandaSummary.state === 0 ? 'bg-blue-100 text-blue-800' :
-            tandaSummary.state === 1 ? 'bg-green-100 text-green-800' :
-              'bg-purple-100 text-purple-800'
-            }`}>
-            {getStateString(tandaSummary.state)}
-          </span>
-          {tandaSummary.state === 1 && isParticipant && (
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${isInGoodStanding ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-              }`}>
-              {isInGoodStanding ? 'In Good Standing' : Number(cyclesToPayRemaining()) > 0? 'Payment Needed': 'Fully Paid'}
-            </span>
+          {tandaSummary.nextPayoutTimestamp && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 min-w-fit h-fit">
+              <div className="flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                </svg>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Next Payout</p>
+                  <div className="flex items-center">
+                    <CountdownTimer timestamp={tandaSummary.nextPayoutTimestamp} />
+                    <span className="text-sm text-gray-500 ml-2">
+                      ({formatDate(tandaSummary.nextPayoutTimestamp)})
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
         {/* Action Buttons Section */}
-        <div className="flex flex-wrap gap-2">
+        <div className="mt-6">
           {/* Join Button */}
           {tandaSummary.state === 0 && !isParticipant && userAddress && (
-            <Transaction calls={joinTandaCalls as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532} >
-              <TransactionButton text="Join Tanda" className='bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm' />
-              <TransactionStatus>
-                <TransactionStatusLabel />
-                <TransactionStatusAction />
-              </TransactionStatus>
-            </Transaction>
-          )}
-
-          {/* Make Payment Button */}
-          {tandaSummary.state === 1 && isParticipant && userAddress && Number(cyclesToPayRemaining()) > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Transaction calls={() => makePaymentCalls(1) as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532}>
-                <TransactionButton text={`Pay 1 Cycle (${formatUSDC(contributionAmount)} USDC)`} className='bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm' />
-                <TransactionStatus>
-                  <TransactionStatusLabel />
-                  <TransactionStatusAction />
-                </TransactionStatus>
-              </Transaction>
-              <Transaction calls={() => makePaymentCallsAllRemaining() as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532}>
-                <TransactionButton text={`Pay All Remaining (${formatUSDC(contributionAmount * BigInt(cyclesToPayRemaining()))} USDC)`} className='bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm' />
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+              <h3 className="text-sm font-medium text-blue-800 mb-2">Join this Tanda</h3>
+              <p className="text-sm text-blue-700 mb-3">Contribute {formatUSDC(contributionAmount)} USDC to participate</p>
+              <Transaction calls={joinTandaCalls as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532}>
+                <TransactionButton text="Join Tanda" className='bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium' />
                 <TransactionStatus>
                   <TransactionStatusLabel />
                   <TransactionStatusAction />
@@ -286,111 +300,169 @@ export default function TandaDetail({ params }: { params: { address: string } })
             </div>
           )}
 
+          {/* Make Payment Button */}
+          {tandaSummary.state === 1 && isParticipant && userAddress && Number(cyclesToPayRemaining()) > 0 && (
+            <div className="bg-yellow-50 border border-yellow-100 rounded-lg p-4">
+              <h3 className="text-sm font-medium text-yellow-800 mb-2">Payment Required</h3>
+              <p className="text-sm text-yellow-700 mb-3">
+                You need to pay for {cyclesToPayRemaining()} more cycle(s) to stay in good standing
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Transaction calls={() => makePaymentCalls(1) as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532}>
+                  <TransactionButton
+                    text={`Pay 1 Cycle (${formatUSDC(contributionAmount)} USDC)`}
+                    className='bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium w-full'
+                  />
+                  <TransactionStatus>
+                    <TransactionStatusLabel />
+                    <TransactionStatusAction />
+                  </TransactionStatus>
+                </Transaction>
+                <Transaction calls={() => makePaymentCalls(Number(cyclesToPayRemaining())) as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532}>
+                  <TransactionButton
+                    text={`Pay All (${formatUSDC(contributionAmount * BigInt(cyclesToPayRemaining()))} USDC)`}
+                    className='bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium w-full'
+                  />
+                  <TransactionStatus>
+                    <TransactionStatusLabel />
+                    <TransactionStatusAction />
+                  </TransactionStatus>
+                </Transaction>
+              </div>
+            </div>
+          )}
+
           {/* Trigger Payout Button */}
           {tandaSummary.state === 1 && canTriggerPayout && isParticipant && userAddress && (
-            <Transaction calls={triggerPayoutCalls as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532}>
-              <TransactionButton
-                text={
-                  isCurrentRecipient
-                    ? `You can claim your payout starting ${formatDate(tandaSummary.nextPayoutTimestamp)}.`
-                    : `You can trigger the payout for ${cycleInfo?.payoutAddress.slice(0, 6)}...${cycleInfo?.payoutAddress.slice(-4)} starting ${formatDate(tandaSummary.nextPayoutTimestamp)}.`
-                }
-                className={`${isCurrentRecipient ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-orange-600 hover:bg-orange-700'} text-white px-4 py-2 rounded-md text-sm`}
-              />
-              <TransactionStatus>
-                <TransactionStatusLabel />
-                <TransactionStatusAction />
-              </TransactionStatus>
-            </Transaction>
+            <div className={`${isCurrentRecipient ? 'bg-yellow-50 border-yellow-100' : 'bg-orange-50 border-orange-100'} border rounded-lg p-4`}>
+              <h3 className="text-sm font-medium mb-2">
+                {isCurrentRecipient ? 'Claim Your Payout' : 'Trigger Payout'}
+              </h3>
+              <p className="text-sm mb-3">
+                {isCurrentRecipient
+                  ? `You can claim your payout of ${formatUSDC(contributionAmount * BigInt(participants.length))} USDC starting ${formatDate(tandaSummary.nextPayoutTimestamp)}.`
+                  : `You can trigger the payout for ${cycleInfo?.payoutAddress.slice(0, 6)}...${cycleInfo?.payoutAddress.slice(-4)} starting ${formatDate(tandaSummary.nextPayoutTimestamp)}.`}
+              </p>
+              <Transaction calls={triggerPayoutCalls as any} chainId={Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 84532}>
+                <TransactionButton
+                  text={isCurrentRecipient ? 'Claim Payout' : 'Trigger Payout'}
+                  className={`${isCurrentRecipient ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-orange-600 hover:bg-orange-700'} text-white px-4 py-2 rounded-md text-sm font-medium`}
+                />
+                <TransactionStatus>
+                  <TransactionStatusLabel />
+                  <TransactionStatusAction />
+                </TransactionStatus>
+              </Transaction>
+            </div>
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-3">
-          <div className="bg-gray-50 border border-gray-200 p-4">
-            <h3 className="text-sm font-medium text-gray-500">Contribution Amount</h3>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <h3 className="text-sm font-medium text-gray-500">Contribution</h3>
             <p className="text-2xl font-semibold text-gray-800">
               {formatUSDC(contributionAmount)} USDC
             </p>
+            <p className="text-xs text-gray-500 mt-1">per cycle</p>
           </div>
-          <div className="bg-gray-50 border border-gray-200 p-4">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <h3 className="text-sm font-medium text-gray-500">Current Cycle</h3>
             <p className="text-2xl font-semibold text-gray-800">
-              {bigIntToString(tandaSummary.currentCycle)} of {bigIntToString(tandaSummary.participantsCount)}
+              {bigIntToString(tandaSummary.currentCycle)} of {tandaMetadata?.participantCount}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {payoutOrderAssigned ? 'Order assigned' : 'Order pending'}
             </p>
           </div>
-          <div className="bg-gray-50 border border-gray-200 p-4">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <h3 className="text-sm font-medium text-gray-500">Total Funds</h3>
             <p className="text-2xl font-semibold text-gray-800">
               {formatUSDC(tandaSummary.totalFunds)} USDC
             </p>
+            <p className="text-xs text-gray-500 mt-1">in contract</p>
           </div>
-          <div className="bg-gray-50 border border-gray-200 p-4">
-            <h3 className="text-sm font-medium text-gray-500">Participant</h3>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <h3 className="text-sm font-medium text-gray-500">Participants</h3>
             <p className="text-2xl font-semibold text-gray-800">
-              {participants.length} / {tandaSummary.participantsCount.toString()}
+              {participants.length} / {tandaMetadata?.participantCount}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {tandaSummary.state === 0 ? 'needed to start' : 'joined'}
             </p>
           </div>
         </div>
       </div>
 
       {/* Cycle Information */}
-      <div className="border border-gray-200 p-6 mb-6">
+      <div className="border border-gray-200 rounded-lg p-6 mb-6">
         <h2 className="text-xl font-semibold text-gray-800 mb-4">Cycle Information</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
+          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
             <h3 className="text-sm font-medium text-gray-500">Next Payout</h3>
             <p className="text-lg font-medium text-gray-800">
-              {formatDate(tandaSummary.nextPayoutTimestamp)}
+              {tandaSummary.nextPayoutTimestamp ? formatDate(tandaSummary.nextPayoutTimestamp) : 'Not started'}
             </p>
           </div>
-          <div>
-            <h3 className="text-sm font-medium text-gray-500">Current Payout Recipient</h3>
+          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <h3 className="text-sm font-medium text-gray-500">Current Recipient</h3>
             <p className="text-lg font-medium text-gray-800">
               {cycleInfo?.payoutAddress ?
                 <Link
                   href={`${process.env.NEXT_PUBLIC_EXPLORER}/address/${cycleInfo.payoutAddress}`}
                   target='_blank'
+                  className="hover:underline hover:text-blue-600"
                 >
                   {cycleInfo.payoutAddress.slice(0, 6)}...{cycleInfo.payoutAddress.slice(-4)}
                 </Link> :
                 'Not assigned yet'}
             </p>
           </div>
-          <div>
+          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
             <h3 className="text-sm font-medium text-gray-500">Payout Interval</h3>
             <p className="text-lg font-medium text-gray-800">
               {secondsToDays(payoutInterval)} days
             </p>
           </div>
-          <div>
-            <h3 className="text-sm font-medium text-gray-500">Grace Period</h3>
+          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <h3 className="text-sm font-medium text-gray-500">Creator</h3>
             <p className="text-lg font-medium text-gray-800">
-              {secondsToDays(gracePeriod)} days
+              {tandaMetadata?.creatorAddress ?
+                <Link
+                  href={`${process.env.NEXT_PUBLIC_EXPLORER}/address/${tandaMetadata.creatorAddress}`}
+                  target='_blank'
+                  className="hover:underline hover:text-blue-600"
+                >
+                  {tandaMetadata.creatorAddress.slice(0, 6)}...{tandaMetadata.creatorAddress.slice(-4)}
+                </Link> :
+                'Unknown'}
             </p>
           </div>
         </div>
       </div>
 
       {/* Participants Section */}
-      <div className="border border-gray-200 p-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">Participants ({bigIntToString(tandaSummary.participantsCount)})</h2>
-          {payoutOrder && (
-            <span className="px-2 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded">
+      <div className="border border-gray-200 rounded-lg p-6 mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <h2 className="text-xl font-semibold text-gray-800">
+            Participants ({participants.length} of {tandaMetadata?.participantCount})
+          </h2>
+          {payoutOrderAssigned && (
+            <span className="px-3 py-1 bg-indigo-100 text-indigo-800 text-sm font-medium rounded-full">
               Payout Order Assigned
             </span>
           )}
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
+          <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid Until</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payout Order</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid Until</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payout Order</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -402,6 +474,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
                         <Link
                           href={`${process.env.NEXT_PUBLIC_EXPLORER}/address/${participant.addr}`}
                           target='_blank'
+                          className="hover:underline hover:text-blue-600"
                         >
                           {participant.addr.slice(0, 6)}...{participant.addr.slice(-4)}
                         </Link>
@@ -426,7 +499,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
                     Cycle {bigIntToString(participant.paidUntilCycle)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {payoutOrder ? `#${bigIntToNumber(participant.payoutOrder) + 1}` : '--'}
+                    {payoutOrderAssigned ? `#${bigIntToNumber(participant.payoutOrder) + 1}` : '--'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatDate(participant.joinTimestamp)}
@@ -439,10 +512,10 @@ export default function TandaDetail({ params }: { params: { address: string } })
       </div>
 
       {/* Payout Schedule */}
-      {payoutOrder && tandaSummary.state === 1 && (
-        <div className="p-6 mb-6 border border-gray-200">
+      {payoutOrderAssigned && tandaSummary.state === 1 && (
+        <div className="border border-gray-200 rounded-lg p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Payout Schedule</h2>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {payoutOrder.map((participantIndex, cycleIndex) => (
               <div
                 key={cycleIndex}
@@ -451,33 +524,38 @@ export default function TandaDetail({ params }: { params: { address: string } })
                     'bg-white border-gray-200'
                   }`}
               >
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div>
-                    <h3 className="font-medium text-gray-800">
-                      Cycle {cycleIndex + 1}{' '}
+                    <h3 className="font-medium text-gray-800 flex items-center gap-2">
+                      Cycle {cycleIndex + 1}
                       {cycleIndex + 1 < bigIntToNumber(tandaSummary.currentCycle) && (
-                        <span className="text-green-600 text-sm">(Completed)</span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                          Completed
+                        </span>
                       )}
                       {cycleIndex + 1 === bigIntToNumber(tandaSummary.currentCycle) && (
-                        <span className="text-blue-600 text-sm">(Current)</span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          Current
+                        </span>
                       )}
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 mt-1">
                       Payout: {contributionAmount && participants ?
                         formatUSDC(contributionAmount * BigInt(participants.length)) :
                         '--'} USDC
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-left sm:text-right">
                     <p className="font-medium text-gray-800">
                       <Link
                         href={`${process.env.NEXT_PUBLIC_EXPLORER}/address/${participants[bigIntToNumber(participantIndex)]?.addr}`}
                         target='_blank'
+                        className="hover:underline hover:text-blue-600"
                       >
                         {participants[bigIntToNumber(participantIndex)]?.addr.slice(0, 6)}...{participants[bigIntToNumber(participantIndex)]?.addr.slice(-4)}
                       </Link>
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 mt-1">
                       {tandaSummary.nextPayoutTimestamp && (cycleIndex + 1) === bigIntToNumber(tandaSummary.currentCycle) ?
                         `Due: ${formatDate(tandaSummary.nextPayoutTimestamp)}` :
                         (cycleIndex + 1) < bigIntToNumber(tandaSummary.currentCycle) ? 'Paid out' : 'Upcoming'}
