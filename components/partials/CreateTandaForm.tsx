@@ -16,11 +16,14 @@ import { createTanda } from '@/utils/supabase/tandas';
 import { supabase } from '@/lib/supabase';
 import { useConversations } from '@/hooks/useConversations';
 import { GroupPermissionsOptions } from '@xmtp/browser-sdk';
+import useTandas from '@/hooks/useTandas';
+import toast from 'react-hot-toast';
 
 export default function CreateTandaForm({ setShowForm }: { setShowForm: Function }) {
   const { address } = useAccount();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { newGroup } = useConversations();
+  const { getTandas } = useTandas();
 
   const {
     register,
@@ -170,9 +173,8 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
         .from('tanda-logos')
         .getPublicUrl(data.path);
 
-      console.log(publicUrl);
-
       return publicUrl;
+
     } catch (error) {
       console.error('Error uploading logo:', error);
       return '';
@@ -184,31 +186,24 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
   const onValid = async (data: TandaFormValues) => {
     // Check if we have enough participants
     if (participantAddresses.length !== Number(data.participantCount)) {
-      alert(`Please add exactly ${data.participantCount} participant addresses. Currently added: ${participantAddresses.length}`);
+      toast.error(`Please add exactly ${data.participantCount} participant addresses. Currently added: ${participantAddresses.length}`);
       return;
     }
 
-    // Upload logo if exists
-    let logo = '';
-    if (logoFile) {
-      logo = await uploadLogo();
-    }
-
-    setValidatedValues({ ...data, logo });
+    setValidatedValues(data);
   };
 
-  const saveTandaToDB = async (contractAddress: string, chatRoomId: string) => {
+  const saveTandaToDB = async (contractAddress: string, chatRoomId: string, logo: string) => {
     if (!validatedValues || !address) return;
-
     try {
       const tanda = await createTanda({
         contractAddress,
         creatorAddress: address,
         title: validatedValues.title,
         description: validatedValues.description,
-        logoUrl: validatedValues.logo || '',
-        contributionAmount: validatedValues.contributionAmount,
-        payoutInterval: validatedValues.payoutInterval,
+        logoUrl: logo,
+        contributionAmount: Number(validatedValues.contributionAmount),
+        payoutInterval: Number(validatedValues.payoutInterval),
         participantCount: Number(validatedValues.participantCount),
         participants: participantAddresses,
         chatRoomId: chatRoomId,
@@ -240,23 +235,64 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
 
   const handleOnSuccess = useCallback(async (response: any) => {
     const contractAddress = `0x${response.transactionReceipts[0].logs[0].topics[2].slice(-40)}`;
-
     try {
+      toast.success("Tanda is created successfully!");
+
+      let logo = '';
+      if (logoFile) {
+        const promise = new Promise(async (resolve, reject) => {
+          try {
+            logo = await uploadLogo();
+            resolve(1);
+          } catch (error) {
+            reject(error);
+          }
+        });
+
+        toast.promise(promise, {
+          loading: 'Uploading logo...',
+          success: 'Logo is uploaded!',
+          error: 'Could not save',
+        })
+      }
+
       const addedMemberAddresses = participantAddresses.filter((member) =>
         isValidEthereumAddress(member),
       );
+
       if (addedMemberAddresses.length > 0) {
         const conversation = await newGroup([], {
           name: validatedValues?.title,
           description: validatedValues?.description,
-          imageUrlSquare: validatedValues?.logo,
+          imageUrlSquare: logo,
           permissions: GroupPermissionsOptions.Default,
           customPermissionPolicySet: undefined,
         });
 
-        await saveTandaToDB(contractAddress, conversation.id);
-      }
 
+        const promise = new Promise(async (resolve, reject) => {
+          try {
+            await saveTandaToDB(contractAddress, conversation.id, logo);
+            resolve(1);
+          } catch (error) {
+            reject(error);
+          }
+        });
+
+        toast.promise(promise, {
+          loading: 'Saving tanda info to database',
+          success: 'Tanda info saved!',
+          error: 'Could not save.',
+        },
+          {
+            style: {
+              width: '260px',
+              paddingRight: '10px',
+            },
+          })
+
+        getTandas();
+      }
     } catch (error) {
       console.error('Error handling transaction success:', error);
     } finally {
@@ -540,8 +576,7 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
             >
               <TransactionButton
                 text={"Create Tanda"}
-                className={`w-full justify-center bg-blue-600 rounded-md hover:bg-blue-700 duration-100 py-3 px-4 font-medium text-white ${isUploading ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
+                className={`w-full justify-center bg-blue-600 rounded-md hover:bg-blue-700 duration-100 py-3 px-4 font-medium text-white}`}
               />
               <TransactionStatus className="mt-2">
                 <TransactionStatusLabel />

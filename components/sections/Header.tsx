@@ -1,7 +1,7 @@
 'use client'
 
 import { AppConnectWallet } from '@/components/ui/ConnectWallet';
-import { Bell, MessageCircle } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function Header() {
@@ -14,9 +14,6 @@ export default function Header() {
                     <Link href={'/chat/home'} className='bg-white p-2 rounded-full border border-gray-200'>
                         <MessageCircle color='#525252' size={14} />
                     </Link>
-                    <button className='bg-white p-2 rounded-full border border-gray-200'>
-                        <Bell color='#525252' size={14} />
-                    </button>
                     <AppConnectWallet />
                 </div>
             </div>
