@@ -16,14 +16,12 @@ import { createTanda } from '@/utils/supabase/tandas';
 import { supabase } from '@/lib/supabase';
 import { useConversations } from '@/hooks/useConversations';
 import { GroupPermissionsOptions } from '@xmtp/browser-sdk';
-import useTandas from '@/hooks/useTandas';
 import toast from 'react-hot-toast';
 
 export default function CreateTandaForm({ setShowForm }: { setShowForm: Function }) {
   const { address } = useAccount();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { newGroup } = useConversations();
-  const { getTandas } = useTandas();
 
   const {
     register,
@@ -290,8 +288,6 @@ export default function CreateTandaForm({ setShowForm }: { setShowForm: Function
               paddingRight: '10px',
             },
           })
-
-        getTandas();
       }
     } catch (error) {
       console.error('Error handling transaction success:', error);
