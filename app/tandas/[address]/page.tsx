@@ -241,7 +241,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
               <div className='flex gap-1 items-center'>
                 {
                   tandaMetadata?.twitter && <Link
-                    href={`${process.env.NEXT_PUBLIC_EXPLORER}/address/${address}`}
+                    href={`${tandaMetadata?.twitter}`}
                     target='_blank'
                     className='w-7 h-7 bg-gray-50 border border-gray-200 rounded-full flex justify-center items-center hover:border-blue-500 hover:text-blue-500'
                   >
@@ -251,7 +251,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
 
                 {
                   tandaMetadata?.discord && <Link
-                    href={`${process.env.NEXT_PUBLIC_EXPLORER}/address/${address}`}
+                    href={`${tandaMetadata?.discord}`}
                     target='_blank'
                     className='w-7 h-7 bg-gray-50 border border-gray-200 rounded-full flex justify-center items-center hover:border-blue-500 hover:text-blue-500'
                   >
@@ -261,7 +261,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
 
                 {
                   tandaMetadata?.telegram && <Link
-                    href={`${process.env.NEXT_PUBLIC_EXPLORER}/address/${address}`}
+                    href={`${tandaMetadata?.telegram}`}
                     target='_blank'
                     className='w-7 h-7 bg-gray-50 border border-gray-200 rounded-full flex justify-center items-center hover:border-blue-500 hover:text-blue-500'
                   >
@@ -271,7 +271,7 @@ export default function TandaDetail({ params }: { params: { address: string } })
 
                 {
                   tandaMetadata?.whatsapp && <Link
-                    href={`${process.env.NEXT_PUBLIC_EXPLORER}/address/${address}`}
+                    href={`${tandaMetadata?.whatsapp}`}
                     target='_blank'
                     className='w-7 h-7 bg-gray-50 border border-gray-200 rounded-full flex justify-center items-center hover:border-blue-500 hover:text-blue-500'
                   >
